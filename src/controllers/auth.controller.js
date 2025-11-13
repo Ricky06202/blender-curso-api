@@ -55,37 +55,63 @@ export const register = async (req, res) => {
   }
 };
 
-export const login = (req, res, next) => {
-  passport.authenticate('local', async (err, user, info) => {
-    if (err) {
-      return next(err);
-    }
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1. Buscar usuario por email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
     if (!user) {
-      return res.status(401).json({ message: info.message || 'Credenciales inválidas' });
+      return res.status(401).json({ message: 'Credenciales inválidas' });
     }
-    
-    req.logIn(user, (err) => {
-      if (err) {
-        return next(err);
-      }
-      
-      // No devolver la contraseña en la respuesta
-      const { password, ...userWithoutPassword } = user;
-      return res.json({
-        message: 'Inicio de sesión exitoso',
-        user: userWithoutPassword
-      });
+
+    // 2. Verificar contraseña
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Credenciales inválidas' });
+    }
+
+    // 3. Generar token JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'tu_secreto_secreto',
+      { expiresIn: '1d' }
+    );
+
+    // 4. Configurar cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 día
+      path: '/',
     });
-  })(req, res, next);
+
+    // 5. Responder sin la contraseña
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({ 
+      message: 'Inicio de sesión exitoso',
+      user: userWithoutPassword
+    });
+
+  } catch (error) {
+    console.error('Error en el login:', error);
+    res.status(500).json({ 
+      message: 'Error al iniciar sesión',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 };
 
 export const logout = (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res.status(500).json({ message: 'Error al cerrar sesión' });
-    }
-    res.json({ message: 'Sesión cerrada exitosamente' });
-  });
+  res.clearCookie('token');
+  res.json({ message: 'Sesión cerrada exitosamente' });
 };
 
 export const getProfile = (req, res) => {

@@ -56,6 +56,8 @@ import { isAuthenticated } from './src/middleware/auth.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cookieParser());
+
 // 8. Middlewares
 const allowedOrigins = [
   'https://blender.rsanjur.com',
