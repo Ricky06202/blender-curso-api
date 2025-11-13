@@ -51,7 +51,7 @@ import { register, login, logout, getProfile as getCurrentUser } from './src/con
 import { isAuthenticated } from './src/middleware/auth.js';
 
 // Inicializar Passport
-// app.use(passport.initialize());
+app.use(passport.initialize());
 
 // 7. Inicializar la aplicación
 const app = express();
