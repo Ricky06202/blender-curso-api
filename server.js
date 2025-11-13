@@ -21,7 +21,6 @@ const PORT = process.env.PORT || 3001;
 // Middleware de CORS
 app.use(cors({
     origin: ['https://rsanjur.com', 'http://localhost:4321'],
-    credentials: true
 }));
 
 app.use(express.json());
