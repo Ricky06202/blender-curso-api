@@ -50,8 +50,7 @@ import { getChapters, getChapterById } from './src/controllers/chapter.controlle
 import { register, login, logout, getProfile as getCurrentUser } from './src/controllers/auth.controller.js';
 import { isAuthenticated } from './src/middleware/auth.js';
 
-// Inicializar Passport
-app.use(passport.initialize());
+
 
 // 7. Inicializar la aplicación
 const app = express();
@@ -78,6 +77,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Inicializar Passport
+app.use(passport.initialize());
 // 9. Rutas
 app.get('/', (req, res) => {
     res.json({ 
