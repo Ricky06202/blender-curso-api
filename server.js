@@ -60,36 +60,36 @@ app.get('/', (req, res) => {
 
 // 8. Ruta para obtener capítulos
 app.get('/api/chapters', async (req, res) => {
-    try {
-        console.log('🔍 Obteniendo capítulos con Drizzle...');
-        
-        // Obtener capítulos publicados
-        const chaptersData = await db.query.chapters.findMany({
-            where: (chapters, { eq }) => eq(chapters.isPublished, true),
-            orderBy: [asc(chapters.order)],
-            with: {
-                sections: {
-                    orderBy: [asc(sections.order)]
-                }
-            }
-        });
+  try {
+    console.log('🔍 Ejecutando consulta con Drizzle...');
+    
+    const result = await db.query.chapters.findMany({
+      where: (chapters, { eq }) => eq(chapters.isPublished, true),
+      orderBy: [asc(chapters.order)],
+      with: {
+        sections: {
+          orderBy: [asc(sections.order)]
+        }
+      }
+    });
 
-        res.json({ 
-            status: 'success', 
-            data: chaptersData 
-        });
-    } catch (error) {
-        console.error('❌ Error con Drizzle:', {
-            message: error.message,
-            stack: error.stack
-        });
-        
-        res.status(500).json({
-            status: 'error',
-            message: 'Error al obtener los capítulos con Drizzle',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
-    }
+    res.json({ 
+      status: 'success', 
+      data: result 
+    });
+  } catch (error) {
+    console.error('❌ Error en la ruta /api/chapters-drizzle:');
+    console.error(error);
+    
+    res.status(500).json({
+      status: 'error',
+      message: 'Error al obtener los capítulos',
+      error: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        code: error.code
+      } : undefined
+    });
+  }
 });
 
 // 9. Iniciar servidor
