@@ -3,13 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
-
-// Importar controladores
-import { getChapters, getChapterById, updateChapterProgress, getUserProgress } from './src/controllers/chapter.controller.js';
-import { register, login, getProfile, logout } from './src/controllers/auth.controller.js';
-
-// Middlewares
-import { authenticate, isAdmin } from './src/middleware/auth.middleware.js';
+import { db } from './src/db/index.js';
+import { todos } from './src/db/schema.js';
+import { eq } from 'drizzle-orm';
 
 // Configuración de rutas de módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -30,66 +26,88 @@ app.use(cors({
 
 app.use(express.json());
 
-// Rutas de autenticación
-app.post('/api/auth/register', register);
-app.post('/api/auth/login', login);
-app.get('/api/auth/profile', authenticate, getProfile);
-app.post('/api/auth/logout', authenticate, logout);
+// Rutas de tareas
+app.get('/api/todos', async (req, res) => {
+    try {
+        const allTodos = await db.select().from(todos).orderBy(todos.createdAt);
+        res.json(allTodos);
+    } catch (error) {
+        console.error('Error al obtener tareas:', error);
+        res.status(500).json({ message: 'Error al obtener las tareas' });
+    }
+});
 
-// Rutas de capítulos
-app.get('/api/chapters', getChapters);
-app.get('/api/chapters/:id', getChapterById);
+app.post('/api/todos', async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!text) {
+            return res.status(400).json({ message: 'El texto es requerido' });
+        }
+        const [newTodo] = await db.insert(todos).values({ text }).returning();
+        res.status(201).json(newTodo);
+    } catch (error) {
+        console.error('Error al crear tarea:', error);
+        res.status(500).json({ message: 'Error al crear la tarea' });
+    }
+});
 
-// Rutas de progreso
-app.get('/api/progress', authenticate, getUserProgress);
-app.post('/api/progress/:chapterId', authenticate, updateChapterProgress);
+app.patch('/api/todos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { completed } = req.body;
+        const [updatedTodo] = await db
+            .update(todos)
+            .set({ completed })
+            .where(eq(todos.id, id))
+            .returning();
+        res.json(updatedTodo);
+    } catch (error) {
+        console.error('Error al actualizar tarea:', error);
+        res.status(500).json({ message: 'Error al actualizar la tarea' });
+    }
+});
+
+app.delete('/api/todos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.delete(todos).where(eq(todos.id, id));
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error al eliminar tarea:', error);
+        res.status(500).json({ message: 'Error al eliminar la tarea' });
+    }
+});
 
 // Ruta raíz con documentación
 app.get('/', (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     
     res.json({
-        message: 'API del Curso de Blender',
+        message: 'API de Tareas',
         environment: process.env.NODE_ENV || 'development',
         endpoints: {
-            auth: {
-                register: { method: 'POST', url: `${baseUrl}/api/auth/register` },
-                login: { method: 'POST', url: `${baseUrl}/api/auth/login` },
-                profile: { 
-                    method: 'GET', 
-                    url: `${baseUrl}/api/auth/profile`,
-                    requires: 'autenticación'
-                },
-                logout: { 
-                    method: 'POST', 
-                    url: `${baseUrl}/api/auth/logout`,
-                    requires: 'autenticación'
-                }
-            },
-            chapters: {
+            todos: {
                 list: { 
                     method: 'GET', 
-                    url: `${baseUrl}/api/chapters`
+                    url: `${baseUrl}/api/todos` 
                 },
-                get: { 
-                    method: 'GET', 
-                    url: `${baseUrl}/api/chapters/:id`
-                }
-            },
-            progress: {
-                get: {
-                    method: 'GET',
-                    url: `${baseUrl}/api/progress`,
-                    requires: 'autenticación'
-                },
-                update: {
-                    method: 'POST',
-                    url: `${baseUrl}/api/progress/:chapterId`,
-                    requires: 'autenticación',
+                create: { 
+                    method: 'POST', 
+                    url: `${baseUrl}/api/todos`,
                     body: {
-                        progress: 'number (0-100)',
-                        completed: 'boolean (opcional)'
+                        text: 'string (requerido)'
                     }
+                },
+                update: { 
+                    method: 'PATCH', 
+                    url: `${baseUrl}/api/todos/:id`,
+                    body: {
+                        completed: 'boolean'
+                    }
+                },
+                delete: { 
+                    method: 'DELETE', 
+                    url: `${baseUrl}/api/todos/:id` 
                 }
             }
         }
@@ -106,16 +124,7 @@ app.use((err, req, res, next) => {
 });
 
 // Iniciar el servidor
-const startServer = async () => {
-    try {
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`);
-            console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
-        });
-    } catch (error) {
-        console.error('❌ No se pudo iniciar el servidor:', error);
-        process.exit(1);
-    }
-};
-
-startServer();
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`);
+    console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
+});
