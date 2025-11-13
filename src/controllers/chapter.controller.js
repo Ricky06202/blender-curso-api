@@ -1,6 +1,6 @@
-const { db } = require('../db');
-const { chapters, sections } = require('../db/schema');
-const { eq, asc, sql } = require('drizzle-orm');
+import { db } from '../db/index.js';
+import { chapters } from '../db/schema.js';
+import { eq, asc } from 'drizzle-orm';
 
 /**
  * Obtener todos los capítulos (público)
@@ -53,7 +53,7 @@ const getChapterById = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getChapters,
   getChapterById
 };
