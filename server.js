@@ -63,31 +63,57 @@ app.get('/api/chapters', async (req, res) => {
   try {
     console.log('🔍 Ejecutando consulta con Drizzle...');
     
-    const result = await db.query.chapters.findMany({
-      where: (chapters, { eq }) => eq(chapters.isPublished, true),
-      orderBy: [asc(chapters.order)],
-      with: {
-        sections: {
-          orderBy: [asc(sections.order)]
-        }
+    // Usa db.select() en lugar de db.query
+    const result = await db.select({
+      id: chapters.id,
+      order: chapters.order,
+      slug: chapters.slug,
+      title: chapters.title,
+      description: chapters.description,
+      videoUrl: chapters.videoUrl,
+      duration: chapters.duration,
+      isPublished: chapters.isPublished,
+      sections: {
+        id: sections.id,
+        title: sections.title,
+        content: sections.content,
+        order: sections.order,
+        chapterId: sections.chapterId
       }
-    });
+    })
+    .from(chapters)
+    .leftJoin(sections, eq(chapters.id, sections.chapterId))
+    .where(eq(chapters.isPublished, true))
+    .orderBy(asc(chapters.order), asc(sections.order));
+
+    // Agrupar secciones por capítulo
+    const grouped = result.reduce((acc, row) => {
+      const chapter = acc.find(c => c.id === row.id);
+      if (chapter) {
+        if (row.sections.id) {
+          chapter.sections.push(row.sections);
+        }
+      } else {
+        acc.push({
+          ...row,
+          sections: row.sections.id ? [row.sections] : []
+        });
+      }
+      return acc;
+    }, []);
 
     res.json({ 
       status: 'success', 
-      data: result 
+      data: grouped 
     });
   } catch (error) {
-    console.error('❌ Error en la ruta /api/chapters-drizzle:');
+    console.error('❌ Error en /api/chapters:');
     console.error(error);
     
     res.status(500).json({
       status: 'error',
       message: 'Error al obtener los capítulos',
-      error: process.env.NODE_ENV === 'development' ? {
-        message: error.message,
-        code: error.code
-      } : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
