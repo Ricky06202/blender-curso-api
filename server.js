@@ -64,19 +64,38 @@ app.get('/api/chapters', async (req, res) => {
         
         console.log('📝 Ejecutando consulta de capítulos...');
         const [chapters] = await connection.query(`
-            SELECT * FROM chapters 
-            WHERE isPublished = true 
+            SELECT 
+                id,
+                \`order\`,
+                slug,
+                title,
+                description,
+                video_url as videoUrl,
+                duration,
+                is_published as isPublished,
+                created_at as createdAt,
+                updated_at as updatedAt
+            FROM chapters 
+            WHERE is_published = true 
             ORDER BY \`order\` ASC
         `);
         console.log(`📚 Capítulos encontrados: ${chapters.length}`);
 
+        // Obtener secciones para cada capítulo
         for (let i = 0; i < chapters.length; i++) {
             console.log(`🔄 Obteniendo secciones para el capítulo ${chapters[i].id}...`);
             const [sections] = await connection.query(`
-                SELECT * FROM sections 
-                WHERE chapterId = ? 
+                SELECT 
+                    id,
+                    title,
+                    content,
+                    \`order\`,
+                    chapter_id as chapterId
+                FROM sections 
+                WHERE chapter_id = ? 
                 ORDER BY \`order\` ASC
             `, [chapters[i].id]);
+            
             chapters[i].sections = sections || [];
             console.log(`✅ ${sections.length} secciones encontradas para el capítulo ${chapters[i].id}`);
         }
