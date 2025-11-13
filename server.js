@@ -6,6 +6,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
+import cookieParser from 'cookie-parser';
 
 
 // 2. Configuración de rutas de archivos ES Modules
@@ -56,8 +57,6 @@ import { isAuthenticated } from './src/middleware/auth.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cookieParser());
-
 // 8. Middlewares
 const allowedOrigins = [
   'https://blender.rsanjur.com',
@@ -79,6 +78,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+app.use(cookieParser());
 
 // Inicializar Passport
 app.use(passport.initialize());
