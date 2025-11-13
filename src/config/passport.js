@@ -27,6 +27,6 @@ passport.use(
       return done(error, false);
     }
   })
-);
+); // Added missing closing parenthesis and semicolon
 
 export default passport;

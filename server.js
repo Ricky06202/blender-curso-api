@@ -1,5 +1,6 @@
 // 1. Importar dependencias
 import express from 'express';
+import passport from './src/config/passport.js';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
@@ -48,9 +49,6 @@ try {
 import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
 import { register, login, logout, getProfile as getCurrentUser } from './src/controllers/auth.controller.js';
 import { isAuthenticated } from './src/middleware/auth.js';
-
-// Después de la configuración de la base de datos
-import passport from './src/config/passport.js';
 
 // Inicializar Passport
 app.use(passport.initialize());

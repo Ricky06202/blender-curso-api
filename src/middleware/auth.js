@@ -11,4 +11,4 @@ export const isAuthenticated = (req, res, next) => {
     req.user = user;
     return next();
   })(req, res, next);
-};
+}; // Added the missing closing brace and semicolon
