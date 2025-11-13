@@ -61,80 +61,56 @@ app.get('/', (req, res) => {
 // 8. Ruta para obtener capítulos
 app.get('/api/chapters', async (req, res) => {
   try {
-    console.log('🔍 Iniciando consulta de capítulos...');
+    console.log('🔍 Obteniendo capítulos con sus secciones...');
     
-    // 1. Primero, prueba una consulta simple
-    console.log('🔹 Probando consulta simple...');
-    const testQuery = await db.select().from(chapters).limit(1);
-    console.log('✅ Consulta simple exitosa:', testQuery);
+    // 1. Primero obtenemos los capítulos publicados
+    const chaptersData = await db.select()
+      .from(chapters)
+      .where(eq(chapters.isPublished, true))
+      .orderBy(asc(chapters.order));
 
-    // 2. Consulta con join
-    console.log('🔹 Probando consulta con join...');
-    const result = await db.select({
-      id: chapters.id,
-      order: chapters.order,
-      title: chapters.title,
-      // Agreguemos solo los campos necesarios para probar
-      sections: {
-        id: sections.id,
-        title: sections.title
-      }
-    })
-    .from(chapters)
-    .leftJoin(sections, eq(chapters.id, sections.chapterId))
-    .where(eq(chapters.isPublished, true))
-    .orderBy(asc(chapters.order), asc(sections.order));
+    if (!chaptersData.length) {
+      return res.json({ status: 'success', data: [] });
+    }
 
-    console.log('✅ Consulta con join exitosa. Resultados:', result.length);
+    // 2. Obtenemos los IDs de los capítulos
+    const chapterIds = chaptersData.map(chapter => chapter.id);
 
-    // 3. Procesamiento más seguro
-    const grouped = [];
-    const chaptersMap = new Map();
+    // 3. Obtenemos las secciones para estos capítulos
+    const sectionsData = await db.select()
+      .from(sections)
+      .where(inArray(sections.chapterId, chapterIds))
+      .orderBy(asc(sections.chapterId), asc(sections.order));
 
-    result.forEach(row => {
-      if (!chaptersMap.has(row.id)) {
-        const chapterData = {
-          ...row,
-          sections: []
-        };
-        delete chapterData.sections; // Eliminar el objeto sections inicial
-        chaptersMap.set(row.id, chapterData);
-        grouped.push(chapterData);
-      }
-
-      if (row.sections && row.sections.id) {
-        const chapter = chaptersMap.get(row.id);
-        chapter.sections = chapter.sections || [];
-        chapter.sections.push(row.sections);
-      }
-    });
+    // 4. Mapeamos las secciones a sus respectivos capítulos
+    const chaptersWithSections = chaptersData.map(chapter => ({
+      ...chapter,
+      sections: sectionsData
+        .filter(section => section.chapterId === chapter.id)
+        .map(({ chapterId, ...section }) => section) // Eliminamos chapterId de las secciones
+    }));
 
     res.json({ 
       status: 'success', 
-      data: grouped 
+      data: chaptersWithSections 
     });
 
   } catch (error) {
-    console.error('❌ Error detallado:');
-    console.error('Mensaje:', error.message);
-    console.error('Stack:', error.stack);
-    
-    // Si es un error de Drizzle, muestra más detalles
-    if (error.cause) {
-      console.error('Causa:', error.cause);
-    }
-    if (error.code) {
-      console.error('Código de error:', error.code);
-    }
+    console.error('❌ Error al obtener capítulos:', {
+      message: error.message,
+      stack: error.stack,
+      ...(error.code && { code: error.code })
+    });
 
     res.status(500).json({
       status: 'error',
       message: 'Error al obtener los capítulos',
-      error: process.env.NODE_ENV === 'development' ? {
-        message: error.message,
-        code: error.code,
-        ...(error.cause && { cause: error.cause.message })
-      } : undefined
+      ...(process.env.NODE_ENV === 'development' && {
+        error: {
+          message: error.message,
+          ...(error.code && { code: error.code })
+        }
+      })
     });
   }
 });
