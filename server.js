@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import cors from 'cors';
 import { db } from './src/db/index.js';
 import { users } from './src/db/schema.js';
 
@@ -26,7 +27,20 @@ import './src/config/passport.js';
 
 const app = express();
 
+// Configuración de CORS
+const corsOptions = {
+  origin: [
+    'http://localhost:4321',
+    'https://blender.rsanjur.com',
+    'http://blender.rsanjur.com'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middleware
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
