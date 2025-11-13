@@ -58,32 +58,57 @@ app.get('/', (req, res) => {
 app.get('/api/chapters', async (req, res) => {
     let connection;
     try {
+        console.log('🔍 Intentando conectar a la base de datos...');
         connection = await pool.getConnection();
+        console.log('✅ Conexión a la base de datos establecida');
+        
+        console.log('📝 Ejecutando consulta de capítulos...');
         const [chapters] = await connection.query(`
             SELECT * FROM chapters 
             WHERE isPublished = true 
             ORDER BY \`order\` ASC
         `);
+        console.log(`📚 Capítulos encontrados: ${chapters.length}`);
 
-        for (let chapter of chapters) {
+        for (let i = 0; i < chapters.length; i++) {
+            console.log(`🔄 Obteniendo secciones para el capítulo ${chapters[i].id}...`);
             const [sections] = await connection.query(`
                 SELECT * FROM sections 
                 WHERE chapterId = ? 
                 ORDER BY \`order\` ASC
-            `, [chapter.id]);
-            chapter.sections = sections || [];
+            `, [chapters[i].id]);
+            chapters[i].sections = sections || [];
+            console.log(`✅ ${sections.length} secciones encontradas para el capítulo ${chapters[i].id}`);
         }
 
-        res.json({ status: 'success', data: chapters });
+        res.json({ 
+            status: 'success', 
+            data: chapters 
+        });
     } catch (error) {
-        console.error('Error al obtener capítulos:', error);
+        console.error('❌ Error detallado:', {
+            message: error.message,
+            code: error.code,
+            errno: error.errno,
+            sql: error.sql,
+            sqlMessage: error.sqlMessage,
+            sqlState: error.sqlState
+        });
+        
         res.status(500).json({
             status: 'error',
             message: 'Error al obtener los capítulos',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: process.env.NODE_ENV === 'development' ? {
+                message: error.message,
+                code: error.code,
+                sqlMessage: error.sqlMessage
+            } : undefined
         });
     } finally {
-        if (connection) connection.release();
+        if (connection) {
+            console.log('🔌 Liberando conexión a la base de datos');
+            await connection.release();
+        }
     }
 });
 
