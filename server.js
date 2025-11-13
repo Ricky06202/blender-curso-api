@@ -1,10 +1,11 @@
 // 1. Importaciones
 import express from 'express';
 import cors from 'cors';
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
+import dotenv from 'fileURLToPath';
 import path from 'path';
+import { db } from './src/db/index.js';
+import { todos } from './src/db/schema.js';
+import { eq, desc } from 'drizzle-orm';
 
 // Configuración de rutas de módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -16,51 +17,6 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 // 2. Inicialización
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Configuración de la base de datos
-const DATABASE_URL = process.env.DATABASE_URL || 'mysql://root:@localhost:3306/todo_list';
-
-// Mostrar configuración (sin contraseña por seguridad)
-const dbUrl = new URL(DATABASE_URL);
-console.log('🔌 Configuración de base de datos:', {
-    host: dbUrl.hostname,
-    database: dbUrl.pathname.replace(/^\//, ''),
-    user: dbUrl.username,
-    port: dbUrl.port || 3306
-});
-
-// Crear el pool de conexiones
-let pool;
-try {
-    pool = mysql.createPool(DATABASE_URL);
-    console.log('✅ Pool de conexión a MySQL creado exitosamente');
-} catch (error) {
-    console.error('❌ Error al crear el pool de conexión:', error);
-    process.exit(1);
-}
-
-// Función para ejecutar consultas SQL
-const query = async (sql, params = []) => {
-    let connection;
-    try {
-        connection = await pool.getConnection();
-        console.log('🔍 Ejecutando consulta:', { sql, params });
-        const [results] = await connection.query(sql, params);
-        return results;
-    } catch (error) {
-        console.error('❌ Error en la consulta SQL:', {
-            sql,
-            params,
-            error: error.message,
-            code: error.code,
-            sqlState: error.sqlState,
-            sqlMessage: error.sqlMessage
-        });
-        throw error;
-    } finally {
-        if (connection) await connection.release();
-    }
-};
 
 // Middleware CORS
 const allowedOrigins = ['https://rsanjur.com', 'http://localhost:4321'];
@@ -80,43 +36,10 @@ app.use(cors({
 
 app.use(express.json());
 
-// Inicialización de la base de datos
-let isDatabaseInitialized = false;
-
-const initializeDatabase = async () => {
-    try {
-        await query(`
-            CREATE TABLE IF NOT EXISTS todos (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                text VARCHAR(255) NOT NULL,
-                completed BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            )
-        `);
-        console.log('✅ Tabla de todos inicializada');
-        return true;
-    } catch (error) {
-        console.error('Error al inicializar la base de datos:', error);
-        return false;
-    }
-};
-
-// Middleware para verificar que la base de datos está lista
-app.use((req, res, next) => {
-    if (!isDatabaseInitialized) {
-        return res.status(503).json({
-            status: 'error',
-            message: 'Servicio no disponible. Inicializando base de datos...'
-        });
-    }
-    next();
-});
-
-// Rutas
+// 3. Rutas
 app.get('/', (req, res) => {
     res.status(200).json({ 
-        message: '✅ API de Lista de Tareas en línea',
+        message: '✅ API de Lista de Tareas con Drizzle',
         environment: process.env.NODE_ENV || 'development'
     });
 });
@@ -124,8 +47,8 @@ app.get('/', (req, res) => {
 // Obtener todas las tareas
 app.get('/api/todos', async (req, res) => {
     try {
-        const todos = await query('SELECT * FROM todos ORDER BY created_at DESC');
-        res.json(todos);
+        const allTodos = await db.select().from(todos).orderBy(desc(todos.createdAt));
+        res.json(allTodos);
     } catch (error) {
         console.error('Error al obtener tareas:', error);
         res.status(500).json({ message: 'Error al obtener las tareas' });
@@ -139,12 +62,13 @@ app.post('/api/todos', async (req, res) => {
     }
     
     try {
-        const result = await query(
-            'INSERT INTO todos (text, completed) VALUES (?, ?)',
-            [req.body.text, false]
-        );
-        
-        const [newTodo] = await query('SELECT * FROM todos WHERE id = ?', [result.insertId]);
+        const [newTodo] = await db.insert(todos)
+            .values({ 
+                text: req.body.text,
+                completed: false
+            })
+            .returning();
+            
         res.status(201).json(newTodo);
     } catch (error) {
         console.error('Error al crear tarea:', error);
@@ -152,21 +76,68 @@ app.post('/api/todos', async (req, res) => {
     }
 });
 
+// Actualizar una tarea
+app.patch('/api/todos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { text, completed } = req.body;
+        
+        const updates = {};
+        if (text !== undefined) updates.text = text;
+        if (completed !== undefined) updates.completed = completed;
+        
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ message: 'No se proporcionaron datos para actualizar' });
+        }
+        
+        const [updatedTodo] = await db.update(todos)
+            .set(updates)
+            .where(eq(todos.id, id))
+            .returning();
+            
+        if (!updatedTodo) {
+            return res.status(404).json({ message: 'Tarea no encontrada' });
+        }
+        
+        res.json(updatedTodo);
+    } catch (error) {
+        console.error('Error al actualizar tarea:', error);
+        res.status(500).json({ message: 'Error al actualizar la tarea' });
+    }
+});
+
+// Eliminar una tarea
+app.delete('/api/todos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [deletedTodo] = await db.delete(todos)
+            .where(eq(todos.id, id))
+            .returning();
+            
+        if (!deletedTodo) {
+            return res.status(404).json({ message: 'Tarea no encontrada' });
+        }
+        
+        res.json(deletedTodo);
+    } catch (error) {
+        console.error('Error al eliminar tarea:', error);
+        res.status(500).json({ message: 'Error al eliminar la tarea' });
+    }
+});
+
 // Iniciar el servidor
 const startServer = async () => {
     try {
-        // Inicializar la base de datos
-        isDatabaseInitialized = await initializeDatabase();
-        if (!isDatabaseInitialized) {
-            throw new Error('No se pudo inicializar la base de datos');
-        }
-
+        // Verificar conexión a la base de datos
+        await db.select().from(todos).limit(1);
+        console.log('✅ Conexión a la base de datos establecida');
+        
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`);
             console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
         });
     } catch (error) {
-        console.error('❌ No se pudo iniciar el servidor:', error);
+        console.error('❌ No se pudo conectar a la base de datos:', error);
         process.exit(1);
     }
 };
