@@ -48,10 +48,10 @@ try {
 // 6. Importar controladores
 import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
 import { register, login, logout, getProfile as getCurrentUser } from './src/controllers/auth.controller.js';
-import { isAuthenticated } from './src/middleware/auth.js';
+// import { isAuthenticated } from './src/middleware/auth.js';
 
 // Inicializar Passport
-app.use(passport.initialize());
+// app.use(passport.initialize());
 
 // 7. Inicializar la aplicación
 const app = express();
@@ -97,10 +97,10 @@ app.get('/api/chapters', getChapters);
 app.get('/api/chapters/:id', getChapterById);
 
 // Rutas de autenticación
-app.post('/api/auth/register', register);
-app.post('/api/auth/login', login);
-app.post('/api/auth/logout', logout);
-app.get('/api/auth/me', isAuthenticated, getCurrentUser);
+// app.post('/api/auth/register', register);
+// app.post('/api/auth/login', login);
+// app.post('/api/auth/logout', logout);
+// app.get('/api/auth/me', isAuthenticated, getCurrentUser);
 
 
 // 11. Manejo de errores
