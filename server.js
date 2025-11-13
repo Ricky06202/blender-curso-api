@@ -6,10 +6,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
 
-import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
-import { register, login, logout, getCurrentUser } from './src/controllers/auth.controller.js';
-import { isAuthenticated } from './src/middleware/auth.js'; // Necesitarás crear este middleware
-
 
 // 2. Configuración de rutas de archivos ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -50,6 +46,14 @@ try {
 
 // 6. Importar controladores
 import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
+import { register, login, logout, getCurrentUser } from './src/controllers/auth.controller.js';
+import { isAuthenticated } from './src/middleware/auth.js';
+
+// Después de la configuración de la base de datos
+import passport from './src/config/passport.js';
+
+// Inicializar Passport
+app.use(passport.initialize());
 
 // 7. Inicializar la aplicación
 const app = express();
