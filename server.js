@@ -61,24 +61,23 @@ app.get('/', (req, res) => {
 // 8. Ruta para obtener capítulos
 app.get('/api/chapters', async (req, res) => {
   try {
-    console.log('🔍 Ejecutando consulta con Drizzle...');
+    console.log('🔍 Iniciando consulta de capítulos...');
     
-    // Usa db.select() en lugar de db.query
+    // 1. Primero, prueba una consulta simple
+    console.log('🔹 Probando consulta simple...');
+    const testQuery = await db.select().from(chapters).limit(1);
+    console.log('✅ Consulta simple exitosa:', testQuery);
+
+    // 2. Consulta con join
+    console.log('🔹 Probando consulta con join...');
     const result = await db.select({
       id: chapters.id,
       order: chapters.order,
-      slug: chapters.slug,
       title: chapters.title,
-      description: chapters.description,
-      videoUrl: chapters.videoUrl,
-      duration: chapters.duration,
-      isPublished: chapters.isPublished,
+      // Agreguemos solo los campos necesarios para probar
       sections: {
         id: sections.id,
-        title: sections.title,
-        content: sections.content,
-        order: sections.order,
-        chapterId: sections.chapterId
+        title: sections.title
       }
     })
     .from(chapters)
@@ -86,34 +85,56 @@ app.get('/api/chapters', async (req, res) => {
     .where(eq(chapters.isPublished, true))
     .orderBy(asc(chapters.order), asc(sections.order));
 
-    // Agrupar secciones por capítulo
-    const grouped = result.reduce((acc, row) => {
-      const chapter = acc.find(c => c.id === row.id);
-      if (chapter) {
-        if (row.sections.id) {
-          chapter.sections.push(row.sections);
-        }
-      } else {
-        acc.push({
+    console.log('✅ Consulta con join exitosa. Resultados:', result.length);
+
+    // 3. Procesamiento más seguro
+    const grouped = [];
+    const chaptersMap = new Map();
+
+    result.forEach(row => {
+      if (!chaptersMap.has(row.id)) {
+        const chapterData = {
           ...row,
-          sections: row.sections.id ? [row.sections] : []
-        });
+          sections: []
+        };
+        delete chapterData.sections; // Eliminar el objeto sections inicial
+        chaptersMap.set(row.id, chapterData);
+        grouped.push(chapterData);
       }
-      return acc;
-    }, []);
+
+      if (row.sections && row.sections.id) {
+        const chapter = chaptersMap.get(row.id);
+        chapter.sections = chapter.sections || [];
+        chapter.sections.push(row.sections);
+      }
+    });
 
     res.json({ 
       status: 'success', 
       data: grouped 
     });
+
   } catch (error) {
-    console.error('❌ Error en /api/chapters:');
-    console.error(error);
+    console.error('❌ Error detallado:');
+    console.error('Mensaje:', error.message);
+    console.error('Stack:', error.stack);
     
+    // Si es un error de Drizzle, muestra más detalles
+    if (error.cause) {
+      console.error('Causa:', error.cause);
+    }
+    if (error.code) {
+      console.error('Código de error:', error.code);
+    }
+
     res.status(500).json({
       status: 'error',
       message: 'Error al obtener los capítulos',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        code: error.code,
+        ...(error.cause && { cause: error.cause.message })
+      } : undefined
     });
   }
 });
