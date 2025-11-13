@@ -1,7 +1,7 @@
 // 1. Importaciones básicas
 import express from 'express';
 import dotenv from 'dotenv';
-import { db } from './src/db/index.js';
+import mysql from 'mysql2/promise';
 
 // 2. Configuración básica
 dotenv.config();
@@ -21,28 +21,29 @@ app.get('/', (req, res) => {
     });
 });
 
-// 5. Ruta para obtener todos los capítulos
+// 5. Ruta para obtener todos los capítulos (versión simplificada)
 app.get('/api/chapters', async (req, res) => {
     try {
-        const chapters = await db.query.chapters.findMany({
-            where: (chapters, { eq }) => eq(chapters.isPublished, true),
-            orderBy: (chapters, { asc }) => [asc(chapters.order)],
-            with: {
-                sections: {
-                    orderBy: (sections, { asc }) => [asc(sections.order)]
-                }
+        // Datos de ejemplo (sin conexión a base de datos)
+        const chapters = [
+            {
+                id: 1,
+                title: "Capítulo de ejemplo",
+                description: "Este es un capítulo de prueba",
+                order: 1,
+                isPublished: true
             }
-        });
+        ];
 
         res.json({
             status: 'success',
             data: chapters
         });
     } catch (error) {
-        console.error('Error al obtener capítulos:', error);
+        console.error('Error:', error);
         res.status(500).json({
             status: 'error',
-            message: 'Error al obtener los capítulos'
+            message: 'Error en el servidor'
         });
     }
 });
