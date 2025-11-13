@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Cargar variables de entorno
-dotenv.config({ path: path.resolve(__dirname, './.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // 2. Inicialización
 const app = express();
@@ -119,4 +119,11 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`);
     console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
     console.log('📚 Documentación disponible en la ruta raíz (/)');
+    
+    // Verificar la conexión a la base de datos
+    import('./src/db/index.js').then(() => {
+        console.log('✅ Base de datos conectada correctamente');
+    }).catch(error => {
+        console.error('❌ Error al conectar con la base de datos:', error.message);
+    });
 });
