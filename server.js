@@ -61,46 +61,61 @@ app.get('/', (req, res) => {
 // 8. Ruta para obtener capítulos
 app.get('/api/chapters', async (req, res) => {
   try {
-    console.log('🔍 Obteniendo capítulos con sus secciones...');
+    console.log('1. Iniciando consulta de capítulos...');
     
     // 1. Primero obtenemos los capítulos publicados
+    console.log('2. Obteniendo capítulos...');
     const chaptersData = await db.select()
       .from(chapters)
       .where(eq(chapters.isPublished, true))
       .orderBy(asc(chapters.order));
+    console.log('3. Capítulos obtenidos:', chaptersData.length);
 
     if (!chaptersData.length) {
+      console.log('4. No hay capítulos publicados');
       return res.json({ status: 'success', data: [] });
     }
 
     // 2. Obtenemos los IDs de los capítulos
     const chapterIds = chaptersData.map(chapter => chapter.id);
+    console.log('5. IDs de capítulos a buscar:', chapterIds);
 
     // 3. Obtenemos las secciones para estos capítulos
+    console.log('6. Buscando secciones...');
     const sectionsData = await db.select()
       .from(sections)
       .where(inArray(sections.chapterId, chapterIds))
       .orderBy(asc(sections.chapterId), asc(sections.order));
+    console.log('7. Secciones encontradas:', sectionsData.length);
 
     // 4. Mapeamos las secciones a sus respectivos capítulos
-    const chaptersWithSections = chaptersData.map(chapter => ({
-      ...chapter,
-      sections: sectionsData
+    console.log('8. Procesando datos...');
+    const chaptersWithSections = chaptersData.map(chapter => {
+      const chapterSections = sectionsData
         .filter(section => section.chapterId === chapter.id)
-        .map(({ chapterId, ...section }) => section) // Eliminamos chapterId de las secciones
-    }));
+        .map(({ chapterId, ...section }) => section);
+      
+      console.log(`   - Capítulo ${chapter.id}: ${chapterSections.length} secciones`);
+      
+      return {
+        ...chapter,
+        sections: chapterSections
+      };
+    });
 
+    console.log('9. Enviando respuesta...');
     res.json({ 
       status: 'success', 
       data: chaptersWithSections 
     });
 
   } catch (error) {
-    console.error('❌ Error al obtener capítulos:', {
-      message: error.message,
-      stack: error.stack,
-      ...(error.code && { code: error.code })
-    });
+    console.error('❌ ERROR DETALLADO:');
+    console.error('Mensaje:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('Código:', error.code);
+    console.error('SQL:', error.sql);
+    console.error('SQL Message:', error.sqlMessage);
 
     res.status(500).json({
       status: 'error',
@@ -108,7 +123,9 @@ app.get('/api/chapters', async (req, res) => {
       ...(process.env.NODE_ENV === 'development' && {
         error: {
           message: error.message,
-          ...(error.code && { code: error.code })
+          ...(error.code && { code: error.code }),
+          ...(error.sql && { sql: error.sql }),
+          ...(error.sqlMessage && { sqlMessage: error.sqlMessage })
         }
       })
     });
