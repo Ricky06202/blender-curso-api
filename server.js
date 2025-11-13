@@ -48,7 +48,7 @@ try {
 // 6. Importar controladores
 import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
 import { register, login, logout, getProfile as getCurrentUser } from './src/controllers/auth.controller.js';
-// import { isAuthenticated } from './src/middleware/auth.js';
+import { isAuthenticated } from './src/middleware/auth.js';
 
 // Inicializar Passport
 // app.use(passport.initialize());
