@@ -1,106 +1,61 @@
-// 1. Importaciones básicas
+// 1. Importar dependencias
 import express from 'express';
 import dotenv from 'dotenv';
-import mysql from 'mysql2/promise';
-import { fileURLToPath } from 'url';
+import cors from 'cors';
 import path from 'path';
-import { db } from './src/db/index.js';
-import { chapters, sections } from './src/db/schema.js';
-import { eq, asc } from 'drizzle-orm';
+import { fileURLToPath } from 'url';
 
-
-// 2. Configuración de rutas de módulos ES
+// 2. Configuración de rutas de archivos ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // 3. Cargar variables de entorno
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config();
 
-// 4. Parsear la URL de la base de datos
-const parseDatabaseUrl = (url) => {
-    const match = url.match(/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
-    if (!match) throw new Error('URL de base de datos no válida');
-    
-    return {
-        host: match[3],
-        user: match[1],
-        password: match[2],
-        database: match[5],
-        port: parseInt(match[4]),
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
-    };
-};
+// 4. Importar controladores
+import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
 
-const dbConfig = parseDatabaseUrl(process.env.DATABASE_URL);
-const pool = mysql.createPool(dbConfig);
-
-// 5. Inicializar Express
+// 5. Inicializar la aplicación
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 6. Middleware para parsear JSON
+// 6. Middlewares
+app.use(cors());
 app.use(express.json());
 
-// 7. Ruta raíz
+// 7. Rutas
 app.get('/', (req, res) => {
-    res.json({
-        status: 'success',
-        message: '¡API funcionando correctamente!',
-        environment: process.env.NODE_ENV || 'development',
-        timestamp: new Date().toISOString(),
-        database: {
-            host: dbConfig.host,
-            database: dbConfig.database,
-            user: dbConfig.user
-        }
-    });
+  res.json({ 
+    message: 'API de Cursos de Blender',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// 8. Ruta para obtener capítulos
-app.get('/api/chapters', async (req, res) => {
-  try {
-    const result = await db.select()
-      .from(chapters)
-      .where(eq(chapters.isPublished, true))
-      .orderBy(asc(chapters.order));
+// 8. Rutas de la API
+app.get('/api/chapters', getChapters);
+app.get('/api/chapters/:id', getChapterById);
 
-    // Envía directamente el array de capítulos
-    res.json(result);
-
-  } catch (error) {
-    console.error('Error al obtener capítulos:', error);
-    res.status(500).json({ 
-      error: 'Error al obtener los capítulos',
-      // Solo muestra detalles del error en desarrollo
-      ...(process.env.NODE_ENV === 'development' && {
-        details: error.message
-      })
-    });
-  }
+// 9. Manejo de errores
+app.use((err, req, res, next) => {
+  console.error('Error en el servidor:', err);
+  res.status(500).json({ 
+    error: 'Error interno del servidor',
+    ...(process.env.NODE_ENV === 'development' && {
+      details: err.message
+    })
+  });
 });
 
-// 9. Iniciar servidor
-app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`);
-    console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`💾 Base de datos: ${dbConfig.host}/${dbConfig.database}`);
-    
-    // Probar conexión a la base de datos
-    try {
-        const connection = await pool.getConnection();
-        console.log('✅ Conexión a la base de datos exitosa');
-        connection.release();
-    } catch (error) {
-        console.error('❌ Error al conectar con la base de datos:');
-        console.error('Mensaje:', error.message);
-        console.error('Código:', error.code);
-    }
+// 10. Iniciar servidor
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`);
+  console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`💾 Base de datos: ${process.env.DATABASE_URL?.split('@')[1]?.split('?')[0] || 'No configurada'}`);
 });
 
-// 10. Manejo de errores
+// Manejo de errores no capturados
 process.on('unhandledRejection', (err) => {
-    console.error('Error no manejado:', err);
-    process.exit(1);
+  console.error('Error no manejado:', err);
+  process.exit(1);
 });
