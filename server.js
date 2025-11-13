@@ -6,6 +6,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
 
+import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
+import { register, login, logout, getCurrentUser } from './src/controllers/auth.controller.js';
+import { isAuthenticated } from './src/middleware/auth.js'; // Necesitarás crear este middleware
+
+
 // 2. Configuración de rutas de archivos ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,9 +56,26 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 8. Middlewares
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = [
+  'https://blender.rsanjur.com',
+  'http://localhost:4321'
+];
 
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Permitir solicitudes sin 'origin' (como aplicaciones móviles o curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  optionsSuccessStatus: 200,
+  credentials: true // Si necesitas enviar cookies o autenticación
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
 // 9. Rutas
 app.get('/', (req, res) => {
     res.json({ 
@@ -71,6 +93,13 @@ app.get('/', (req, res) => {
 // 10. Rutas de la API
 app.get('/api/chapters', getChapters);
 app.get('/api/chapters/:id', getChapterById);
+
+// Rutas de autenticación
+app.post('/api/auth/register', register);
+app.post('/api/auth/login', login);
+app.post('/api/auth/logout', logout);
+app.get('/api/auth/me', isAuthenticated, getCurrentUser);
+
 
 // 11. Manejo de errores
 app.use((err, req, res, next) => {
