@@ -121,10 +121,35 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Configuración del puerto
+const PORT = process.env.PORT || 3001;
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+
 // Iniciar el servidor
-const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`🚀 Servidor en ejecución en ${HOST}:${PORT}`);
+  console.log('🔍 Entorno:', process.env.NODE_ENV || 'development');
+  
+  // Mostrar información de configuración (solo en desarrollo)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('📝 Variables de entorno:', {
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL: process.env.DATABASE_URL ? '✅ Configurada' : '❌ No configurada',
+      SESSION_SECRET: process.env.SESSION_SECRET ? '✅ Configurada' : '❌ No configurada',
+      PORT: process.env.PORT || 'Usando puerto por defecto (3001)'
+    });
+  }
+});
+
+// Manejador de errores del servidor
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Error: El puerto ${PORT} está en uso.`);
+    console.log('💡 Intenta con otro puerto configurando la variable de entorno PORT');
+  } else {
+    console.error('❌ Error al iniciar el servidor:', error);
+  }
+  process.exit(1);
 });
 
 // Manejo de errores no capturados
