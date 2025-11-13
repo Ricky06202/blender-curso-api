@@ -2,59 +2,110 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
-// 2. Configuración básica
-dotenv.config();
+// 2. Configuración de rutas de módulos ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 3. Cargar variables de entorno
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+// 4. Parsear la URL de la base de datos
+const parseDatabaseUrl = (url) => {
+    const match = url.match(/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
+    if (!match) throw new Error('URL de base de datos no válida');
+    
+    return {
+        host: match[3],
+        user: match[1],
+        password: match[2],
+        database: match[5],
+        port: parseInt(match[4]),
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+};
+
+const dbConfig = parseDatabaseUrl(process.env.DATABASE_URL);
+const pool = mysql.createPool(dbConfig);
+
+// 5. Inicializar Express
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 3. Middleware para parsear JSON
+// 6. Middleware para parsear JSON
 app.use(express.json());
 
-// 4. Ruta raíz de prueba
+// 7. Ruta raíz
 app.get('/', (req, res) => {
     res.json({
         status: 'success',
         message: '¡API funcionando correctamente!',
         environment: process.env.NODE_ENV || 'development',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        database: {
+            host: dbConfig.host,
+            database: dbConfig.database,
+            user: dbConfig.user
+        }
     });
 });
 
-// 5. Ruta para obtener todos los capítulos (versión simplificada)
+// 8. Ruta para obtener capítulos
 app.get('/api/chapters', async (req, res) => {
+    let connection;
     try {
-        // Datos de ejemplo (sin conexión a base de datos)
-        const chapters = [
-            {
-                id: 1,
-                title: "Capítulo de ejemplo",
-                description: "Este es un capítulo de prueba",
-                order: 1,
-                isPublished: true
-            }
-        ];
+        connection = await pool.getConnection();
+        const [chapters] = await connection.query(`
+            SELECT * FROM chapters 
+            WHERE isPublished = true 
+            ORDER BY \`order\` ASC
+        `);
 
-        res.json({
-            status: 'success',
-            data: chapters
-        });
+        for (let chapter of chapters) {
+            const [sections] = await connection.query(`
+                SELECT * FROM sections 
+                WHERE chapterId = ? 
+                ORDER BY \`order\` ASC
+            `, [chapter.id]);
+            chapter.sections = sections || [];
+        }
+
+        res.json({ status: 'success', data: chapters });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error al obtener capítulos:', error);
         res.status(500).json({
             status: 'error',
-            message: 'Error en el servidor'
+            message: 'Error al obtener los capítulos',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-// 6. Iniciar servidor
-app.listen(PORT, '0.0.0.0', () => {
+// 9. Iniciar servidor
+app.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${PORT}`);
     console.log(`🌐 Entorno: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`💾 Base de datos: ${dbConfig.host}/${dbConfig.database}`);
+    
+    // Probar conexión a la base de datos
+    try {
+        const connection = await pool.getConnection();
+        console.log('✅ Conexión a la base de datos exitosa');
+        connection.release();
+    } catch (error) {
+        console.error('❌ Error al conectar con la base de datos:');
+        console.error('Mensaje:', error.message);
+        console.error('Código:', error.code);
+    }
 });
 
-// 7. Manejo básico de errores
+// 10. Manejo de errores
 process.on('unhandledRejection', (err) => {
     console.error('Error no manejado:', err);
     process.exit(1);
