@@ -4,6 +4,10 @@ import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { db } from './src/db/index.js';
+import { chapters, sections } from './src/db/schema.js';
+import { eq, asc } from 'drizzle-orm';
+
 
 // 2. Configuración de rutas de módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -56,78 +60,35 @@ app.get('/', (req, res) => {
 
 // 8. Ruta para obtener capítulos
 app.get('/api/chapters', async (req, res) => {
-    let connection;
     try {
-        console.log('🔍 Intentando conectar a la base de datos...');
-        connection = await pool.getConnection();
-        console.log('✅ Conexión a la base de datos establecida');
+        console.log('🔍 Obteniendo capítulos con Drizzle...');
         
-        console.log('📝 Ejecutando consulta de capítulos...');
-        const [chapters] = await connection.query(`
-            SELECT 
-                id,
-                \`order\`,
-                slug,
-                title,
-                description,
-                video_url as videoUrl,
-                duration,
-                is_published as isPublished,
-                created_at as createdAt,
-                updated_at as updatedAt
-            FROM chapters 
-            WHERE is_published = true 
-            ORDER BY \`order\` ASC
-        `);
-        console.log(`📚 Capítulos encontrados: ${chapters.length}`);
-
-        // Obtener secciones para cada capítulo
-        for (let i = 0; i < chapters.length; i++) {
-            console.log(`🔄 Obteniendo secciones para el capítulo ${chapters[i].id}...`);
-            const [sections] = await connection.query(`
-                SELECT 
-                    id,
-                    title,
-                    content,
-                    \`order\`,
-                    chapter_id as chapterId
-                FROM sections 
-                WHERE chapter_id = ? 
-                ORDER BY \`order\` ASC
-            `, [chapters[i].id]);
-            
-            chapters[i].sections = sections || [];
-            console.log(`✅ ${sections.length} secciones encontradas para el capítulo ${chapters[i].id}`);
-        }
+        // Obtener capítulos publicados
+        const chaptersData = await db.query.chapters.findMany({
+            where: (chapters, { eq }) => eq(chapters.isPublished, true),
+            orderBy: [asc(chapters.order)],
+            with: {
+                sections: {
+                    orderBy: [asc(sections.order)]
+                }
+            }
+        });
 
         res.json({ 
             status: 'success', 
-            data: chapters 
+            data: chaptersData 
         });
     } catch (error) {
-        console.error('❌ Error detallado:', {
+        console.error('❌ Error con Drizzle:', {
             message: error.message,
-            code: error.code,
-            errno: error.errno,
-            sql: error.sql,
-            sqlMessage: error.sqlMessage,
-            sqlState: error.sqlState
+            stack: error.stack
         });
         
         res.status(500).json({
             status: 'error',
-            message: 'Error al obtener los capítulos',
-            error: process.env.NODE_ENV === 'development' ? {
-                message: error.message,
-                code: error.code,
-                sqlMessage: error.sqlMessage
-            } : undefined
+            message: 'Error al obtener los capítulos con Drizzle',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
-    } finally {
-        if (connection) {
-            console.log('🔌 Liberando conexión a la base de datos');
-            await connection.release();
-        }
     }
 });
 
