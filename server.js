@@ -61,22 +61,22 @@ app.get('/', (req, res) => {
 // 8. Ruta para obtener capítulos
 app.get('/api/chapters', async (req, res) => {
   try {
-    // Consulta simple: solo capítulos sin secciones
     const result = await db.select()
       .from(chapters)
       .where(eq(chapters.isPublished, true))
       .orderBy(asc(chapters.order));
 
-    res.json({ 
-      status: 'success', 
-      data: result 
-    });
+    // Envía directamente el array de capítulos
+    res.json(result);
 
   } catch (error) {
     console.error('Error al obtener capítulos:', error);
     res.status(500).json({ 
-      status: 'error',
-      message: 'Error al obtener los capítulos'
+      error: 'Error al obtener los capítulos',
+      // Solo muestra detalles del error en desarrollo
+      ...(process.env.NODE_ENV === 'development' && {
+        details: error.message
+      })
     });
   }
 });
