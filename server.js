@@ -120,12 +120,11 @@ app.get('/api/auth/me', isAuthenticated, getCurrentUser);
 app.get('/api/auth/google', googleAuth);
 app.get('/api/auth/google/callback', googleCallback);
 
-// Test endpoint
+// Debug endpoints (después de toda la configuración)
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
 });
 
-// Debug Google callback
 app.get('/api/auth/google/callback/debug', (req, res) => {
   res.json({ 
     message: 'Google callback debug endpoint',
@@ -134,7 +133,6 @@ app.get('/api/auth/google/callback/debug', (req, res) => {
   });
 });
 
-// Show Google auth URL
 app.get('/api/auth/google/url', (req, res) => {
   const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 
     'client_id=' + process.env.GOOGLE_CLIENT_ID + '&' +
