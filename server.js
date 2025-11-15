@@ -84,6 +84,12 @@ app.use(express.json());
 
 app.use(cookieParser());
 
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
+
 // Inicializar Passport
 app.use(passport.initialize());
 // 9. Rutas
@@ -113,6 +119,11 @@ app.get('/api/auth/me', isAuthenticated, getCurrentUser);
 // Rutas de Google OAuth
 app.get('/api/auth/google', googleAuth);
 app.get('/api/auth/google/callback', googleCallback);
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
+});
 
 
 // 11. Manejo de errores
