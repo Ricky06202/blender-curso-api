@@ -50,7 +50,7 @@ try {
 import passport from './src/config/passport.js';
 
 // 6. Importar controladores
-import { getChapters, getChapterById, getUserProgress, updateChapterProgress } from './src/controllers/chapter.controller.js';
+import { getChapters, getChapterById, getUserProgress, markChapterAsWatched, removeChapterProgress } from './src/controllers/chapter.controller.js';
 import { register, login, logout, getProfile as getCurrentUser, googleAuth, googleCallback } from './src/controllers/auth.controller.js';
 import { isAuthenticated } from './src/middleware/auth.js';
 
@@ -110,7 +110,8 @@ app.get('/', (req, res) => {
 app.get('/api/chapters', getChapters);
 app.get('/api/chapters/:id', getChapterById);
 app.get('/api/chapters/progress/me', isAuthenticated, getUserProgress);
-app.put('/api/chapters/:chapterId/progress', isAuthenticated, updateChapterProgress);
+app.post('/api/chapters/:chapterId/progress', isAuthenticated, markChapterAsWatched);
+app.delete('/api/chapters/:chapterId/progress', isAuthenticated, removeChapterProgress);
 
 // Rutas de autenticación
 app.post('/api/auth/register', register);

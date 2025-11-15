@@ -101,13 +101,12 @@ const getUserProgress = async (req, res) => {
 };
 
 /**
- * Actualizar el progreso de un capítulo
+ * Marcar un capítulo como visto (crear o actualizar registro)
  */
-const updateChapterProgress = async (req, res) => {
+const markChapterAsWatched = async (req, res) => {
   try {
     const { chapterId } = req.params;
     const userId = req.user.id;
-    const { isCompleted, progress, videoProgress } = req.body;
 
     // Verificar que el capítulo existe
     const [chapter] = await db
@@ -128,46 +127,81 @@ const updateChapterProgress = async (req, res) => {
       .where(eq(userChapterProgress.chapterId, parseInt(chapterId)))
       .limit(1);
 
-    const updateData = {
-      lastPlayedAt: new Date(),
-      ...(isCompleted !== undefined && { isCompleted }),
-      ...(progress !== undefined && { progress }),
-      ...(videoProgress !== undefined && { videoProgress }),
-      ...(isCompleted && !existingProgress?.isCompleted && { 
-        completedAt: new Date() 
-      })
-    };
-
-    let result;
     if (existingProgress) {
-      // Actualizar progreso existente
-      result = await db
+      // Si ya existe, actualizamos el lastPlayedAt
+      await db
         .update(userChapterProgress)
-        .set(updateData)
+        .set({ 
+          lastPlayedAt: new Date(),
+          isCompleted: true,
+          completedAt: new Date()
+        })
         .where(eq(userChapterProgress.id, existingProgress.id));
+
+      return res.json({
+        message: 'Capítulo marcado como visto (actualizado)',
+        chapterId: parseInt(chapterId),
+        action: 'updated'
+      });
     } else {
-      // Crear nuevo progreso
-      result = await db
+      // Si no existe, creamos nuevo registro
+      await db
         .insert(userChapterProgress)
         .values({
           userId,
           chapterId: parseInt(chapterId),
-          isCompleted: isCompleted || false,
-          progress: progress || 0,
-          videoProgress: videoProgress || 0,
+          isCompleted: true,
+          progress: 100,
+          videoProgress: 0,
           lastPlayedAt: new Date(),
-          completedAt: isCompleted ? new Date() : null
+          completedAt: new Date()
         });
+
+      return res.json({
+        message: 'Capítulo marcado como visto (nuevo)',
+        chapterId: parseInt(chapterId),
+        action: 'created'
+      });
+    }
+  } catch (error) {
+    console.error('Error al marcar capítulo como visto:', error);
+    res.status(500).json({ 
+      error: 'Error al marcar capítulo como visto',
+      ...(process.env.NODE_ENV === 'development' && {
+        details: error.message
+      })
+    });
+  }
+};
+
+/**
+ * Eliminar el progreso de un capítulo
+ */
+const removeChapterProgress = async (req, res) => {
+  try {
+    const { chapterId } = req.params;
+    const userId = req.user.id;
+
+    // Buscar y eliminar el progreso del capítulo
+    const deletedProgress = await db
+      .delete(userChapterProgress)
+      .where(eq(userChapterProgress.userId, userId))
+      .where(eq(userChapterProgress.chapterId, parseInt(chapterId)));
+
+    if (deletedProgress.affectedRows === 0) {
+      return res.status(404).json({ 
+        error: 'No se encontró progreso para este capítulo' 
+      });
     }
 
     res.json({
-      message: 'Progreso actualizado exitosamente',
-      data: updateData
+      message: 'Progreso del capítulo eliminado exitosamente',
+      chapterId: parseInt(chapterId)
     });
   } catch (error) {
-    console.error('Error al actualizar progreso:', error);
+    console.error('Error al eliminar progreso:', error);
     res.status(500).json({ 
-      error: 'Error al actualizar progreso',
+      error: 'Error al eliminar progreso',
       ...(process.env.NODE_ENV === 'development' && {
         details: error.message
       })
@@ -179,5 +213,6 @@ export {
   getChapters,
   getChapterById,
   getUserProgress,
-  updateChapterProgress
+  markChapterAsWatched,
+  removeChapterProgress
 };
