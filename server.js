@@ -1,23 +1,27 @@
 // 1. Importar dependencias
-import express from 'express';
-import passport from './src/config/passport.js';
 import dotenv from 'dotenv';
+dotenv.config();
+
+import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
 import cookieParser from 'cookie-parser';
 
+// Importar passport después de cargar las variables de entorno
+import passport from './src/config/passport.js';
+
 
 // 2. Configuración de rutas de archivos ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 3. Cargar variables de entorno
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-
-// 4. Parsear la URL de la base de datos
+// 3. Parsear la URL de la base de datos
 const parseDatabaseUrl = (url) => {
+    // Remover comillas si existen
+    url = url.replace(/^["']|["']$/g, '');
+    
     const match = url.match(/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
     if (!match) throw new Error('URL de base de datos no válida');
     
