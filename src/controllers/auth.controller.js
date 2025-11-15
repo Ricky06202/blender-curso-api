@@ -116,9 +116,33 @@ export const logout = (req, res) => {
   res.json({ message: 'Sesión cerrada exitosamente' });
 };
 
-export const getProfile = (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'No autorizado' });
+export const getProfile = async (req, res) => {
+  try {
+    // Obtener datos completos del usuario desde la base de datos
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role
+      })
+      .from(users)
+      .where(eq(users.id, req.user.id))
+      .limit(1);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.json({ 
+      user: {
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener perfil:', error);
+    res.status(500).json({ message: 'Error al obtener perfil' });
   }
-  res.json({ user: req.user });
 };
