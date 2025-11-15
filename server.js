@@ -50,7 +50,7 @@ try {
 import passport from './src/config/passport.js';
 
 // 6. Importar controladores
-import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
+import { getChapters, getChapterById, getUserProgress, updateChapterProgress } from './src/controllers/chapter.controller.js';
 import { register, login, logout, getProfile as getCurrentUser, googleAuth, googleCallback } from './src/controllers/auth.controller.js';
 import { isAuthenticated } from './src/middleware/auth.js';
 
@@ -109,6 +109,8 @@ app.get('/', (req, res) => {
 // 10. Rutas de la API
 app.get('/api/chapters', getChapters);
 app.get('/api/chapters/:id', getChapterById);
+app.get('/api/chapters/progress/me', isAuthenticated, getUserProgress);
+app.put('/api/chapters/:chapterId/progress', isAuthenticated, updateChapterProgress);
 
 // Rutas de autenticación
 app.post('/api/auth/register', register);
@@ -119,45 +121,6 @@ app.get('/api/auth/me', isAuthenticated, getCurrentUser);
 // Rutas de Google OAuth
 app.get('/api/auth/google', googleAuth);
 app.get('/api/auth/google/callback', googleCallback);
-
-// Debug endpoints (después de toda la configuración)
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
-});
-
-app.get('/api/env', (req, res) => {
-  res.json({ 
-    message: 'Environment variables',
-    googleClientId: process.env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET',
-    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET',
-    frontendUrl: process.env.FRONTEND_URL,
-    nodeEnv: process.env.NODE_ENV,
-    allEnv: Object.keys(process.env).filter(key => key.includes('GOOGLE'))
-  });
-});
-
-app.get('/api/auth/google/callback/debug', (req, res) => {
-  res.json({ 
-    message: 'Google callback debug endpoint',
-    query: req.query,
-    timestamp: new Date().toISOString()
-  });
-});
-
-app.get('/api/auth/google/url', (req, res) => {
-  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 
-    'client_id=' + process.env.GOOGLE_CLIENT_ID + '&' +
-    'redirect_uri=' + encodeURIComponent('https://blenderapi.rsanjur.com/api/auth/google/callback') + '&' +
-    'response_type=code&' +
-    'scope=' + encodeURIComponent('profile email') + '&' +
-    'state=random_string';
-  
-  res.json({ 
-    message: 'Google OAuth URL',
-    authUrl: authUrl,
-    timestamp: new Date().toISOString()
-  });
-});
 
 
 // 11. Manejo de errores
