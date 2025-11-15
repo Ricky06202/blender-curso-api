@@ -9,10 +9,6 @@ import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
 import cookieParser from 'cookie-parser';
 
-// Importar passport después de cargar las variables de entorno
-import passport from './src/config/passport.js';
-
-
 // 2. Configuración de rutas de archivos ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +46,9 @@ try {
     process.exit(1);
 }
 
+// Importar passport después de configurar la base de datos
+import passport from './src/config/passport.js';
+
 // 6. Importar controladores
 import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
 import { register, login, logout, getProfile as getCurrentUser, googleAuth, googleCallback } from './src/controllers/auth.controller.js';
@@ -86,7 +85,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Inicializar Passport
-// app.use(passport.initialize());
+app.use(passport.initialize());
 // 9. Rutas
 app.get('/', (req, res) => {
     res.json({ 
