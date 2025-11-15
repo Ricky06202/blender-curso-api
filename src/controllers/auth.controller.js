@@ -45,12 +45,15 @@ export const register = async (req, res) => {
       .where(eq(users.email, email))
       .limit(1);
 
-    // Iniciar sesión automáticamente después del registro
-    req.login(user, (err) => {
-      if (err) {
-        return res.status(500).json({ message: 'Error al iniciar sesión' });
+    // Retornar respuesta exitosa
+    res.status(201).json({
+      message: 'Usuario registrado exitosamente',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
       }
-      res.status(201).json(user);
     });
   } catch (error) {
     console.error('Error en el registro:', error);
