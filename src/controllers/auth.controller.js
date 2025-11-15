@@ -155,20 +155,44 @@ export const googleAuth = passport.authenticate('google', {
 });
 
 export const googleCallback = (req, res) => {
+  console.log('Google callback received with query:', req.query);
+  
+  // Primero intentamos sin Passport para ver si llega el request
+  if (req.query.error) {
+    return res.status(400).json({ 
+      error: 'Google returned error',
+      details: req.query
+    });
+  }
+  
+  if (!req.query.code) {
+    return res.status(400).json({ 
+      error: 'No authorization code received',
+      query: req.query
+    });
+  }
+  
+  // Si tenemos el código, intentamos con Passport
   passport.authenticate('google', { session: false }, (err, data) => {
-    if (err || !data) {
-      // Devolver error JSON para debugging
+    console.log('Passport result:', { err: err?.message, data: !!data });
+    
+    if (err) {
       return res.status(400).json({ 
-        error: 'Google authentication failed',
-        message: err?.message || 'Authentication error',
-        details: err?.toString()
+        error: 'Passport authentication failed',
+        message: err.message,
+        stack: err.stack
       });
     }
-
-    const { user, token } = data;
+    
+    if (!data) {
+      return res.status(400).json({ 
+        error: 'No data returned from Passport',
+        query: req.query
+      });
+    }
     
     try {
-      // Redirigir al frontend con el token y datos del usuario
+      const { user, token } = data;
       const userData = {
         id: user.id,
         email: user.email,
@@ -176,13 +200,13 @@ export const googleCallback = (req, res) => {
         role: user.role,
         image: user.image
       };
-
+      
       res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify(userData))}`);
     } catch (redirectError) {
       return res.status(500).json({
         error: 'Redirect failed',
         message: redirectError.message,
-        user: user.email
+        data: data
       });
     }
   })(req, res);
