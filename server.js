@@ -125,6 +125,15 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
 });
 
+// Debug Google callback
+app.get('/api/auth/google/callback/debug', (req, res) => {
+  res.json({ 
+    message: 'Google callback debug endpoint',
+    query: req.query,
+    timestamp: new Date().toISOString()
+  });
+});
+
 
 // 11. Manejo de errores
 app.use((err, req, res, next) => {
