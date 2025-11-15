@@ -10,7 +10,7 @@ import mysql from 'mysql2/promise';
 import cookieParser from 'cookie-parser';
 
 // Importar passport después de cargar las variables de entorno
-import passport from './src/config/passport.js';
+// import passport from './src/config/passport.js';
 
 
 // 2. Configuración de rutas de archivos ES Modules
@@ -86,7 +86,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Inicializar Passport
-app.use(passport.initialize());
+// app.use(passport.initialize());
 // 9. Rutas
 app.get('/', (req, res) => {
     res.json({ 
