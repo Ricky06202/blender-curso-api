@@ -22,7 +22,7 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Crear el usuario
-    const [user] = await db
+    const result = await db
       .insert(users)
       .values({
         email,
@@ -31,13 +31,19 @@ export const register = async (req, res) => {
         role: 'USER',
         emailVerified: false,
         image: null
-      })
-      .returning({
+      });
+
+    // Obtener el usuario creado (MySQL no soporta .returning())
+    const [user] = await db
+      .select({
         id: users.id,
         email: users.email,
         name: users.name,
         role: users.role
-      });
+      })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
 
     // Iniciar sesión automáticamente después del registro
     req.login(user, (err) => {
