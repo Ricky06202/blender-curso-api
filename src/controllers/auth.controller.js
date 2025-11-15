@@ -93,20 +93,12 @@ export const login = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    // 4. Configurar cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 1 día
-      path: '/',
-    });
-
-    // 5. Responder sin la contraseña
+    // 4. Responder con el token y usuario
     const { password: _, ...userWithoutPassword } = user;
     
     res.json({ 
       message: 'Inicio de sesión exitoso',
+      token,
       user: userWithoutPassword
     });
 
