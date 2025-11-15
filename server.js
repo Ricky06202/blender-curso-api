@@ -10,7 +10,7 @@ import mysql from 'mysql2/promise';
 import cookieParser from 'cookie-parser';
 
 // Importar passport después de cargar las variables de entorno
-// import passport from './src/config/passport.js';
+import passport from './src/config/passport.js';
 
 
 // 2. Configuración de rutas de archivos ES Modules
