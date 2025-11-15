@@ -157,20 +157,33 @@ export const googleAuth = passport.authenticate('google', {
 export const googleCallback = (req, res) => {
   passport.authenticate('google', { session: false }, (err, data) => {
     if (err || !data) {
-      return res.redirect(`${process.env.FRONTEND_URL}?error=auth_failed`);
+      // Devolver error JSON para debugging
+      return res.status(400).json({ 
+        error: 'Google authentication failed',
+        message: err?.message || 'Authentication error',
+        details: err?.toString()
+      });
     }
 
     const { user, token } = data;
     
-    // Redirigir al frontend con el token y datos del usuario
-    const userData = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      image: user.image
-    };
+    try {
+      // Redirigir al frontend con el token y datos del usuario
+      const userData = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        image: user.image
+      };
 
-    res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify(userData))}`);
+      res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify(userData))}`);
+    } catch (redirectError) {
+      return res.status(500).json({
+        error: 'Redirect failed',
+        message: redirectError.message,
+        user: user.email
+      });
+    }
   })(req, res);
 };
