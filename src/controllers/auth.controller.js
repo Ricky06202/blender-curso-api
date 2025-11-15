@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { db } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import passport from 'passport';
 
 export const register = async (req, res) => {
   try {
@@ -145,4 +146,31 @@ export const getProfile = async (req, res) => {
     console.error('Error al obtener perfil:', error);
     res.status(500).json({ message: 'Error al obtener perfil' });
   }
+};
+
+// Google OAuth endpoints
+export const googleAuth = passport.authenticate('google', { 
+  session: false,
+  scope: ['profile', 'email'] 
+});
+
+export const googleCallback = (req, res) => {
+  passport.authenticate('google', { session: false }, (err, data) => {
+    if (err || !data) {
+      return res.redirect(`${process.env.FRONTEND_URL}?error=auth_failed`);
+    }
+
+    const { user, token } = data;
+    
+    // Redirigir al frontend con el token y datos del usuario
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      image: user.image
+    };
+
+    res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify(userData))}`);
+  })(req, res);
 };

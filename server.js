@@ -48,7 +48,7 @@ try {
 
 // 6. Importar controladores
 import { getChapters, getChapterById } from './src/controllers/chapter.controller.js';
-import { register, login, logout, getProfile as getCurrentUser } from './src/controllers/auth.controller.js';
+import { register, login, logout, getProfile as getCurrentUser, googleAuth, googleCallback } from './src/controllers/auth.controller.js';
 import { isAuthenticated } from './src/middleware/auth.js';
 
 
@@ -106,6 +106,10 @@ app.post('/api/auth/register', register);
 app.post('/api/auth/login', login);
 app.post('/api/auth/logout', logout);
 app.get('/api/auth/me', isAuthenticated, getCurrentUser);
+
+// Rutas de Google OAuth
+app.get('/api/auth/google', googleAuth);
+app.get('/api/auth/google/callback', googleCallback);
 
 
 // 11. Manejo de errores
