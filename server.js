@@ -125,6 +125,17 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/env', (req, res) => {
+  res.json({ 
+    message: 'Environment variables',
+    googleClientId: process.env.GOOGLE_CLIENT_ID ? 'SET' : 'NOT SET',
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'NOT SET',
+    frontendUrl: process.env.FRONTEND_URL,
+    nodeEnv: process.env.NODE_ENV,
+    allEnv: Object.keys(process.env).filter(key => key.includes('GOOGLE'))
+  });
+});
+
 app.get('/api/auth/google/callback/debug', (req, res) => {
   res.json({ 
     message: 'Google callback debug endpoint',
