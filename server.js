@@ -134,6 +134,22 @@ app.get('/api/auth/google/callback/debug', (req, res) => {
   });
 });
 
+// Show Google auth URL
+app.get('/api/auth/google/url', (req, res) => {
+  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 
+    'client_id=' + process.env.GOOGLE_CLIENT_ID + '&' +
+    'redirect_uri=' + encodeURIComponent('https://blenderapi.rsanjur.com/api/auth/google/callback') + '&' +
+    'response_type=code&' +
+    'scope=' + encodeURIComponent('profile email') + '&' +
+    'state=random_string';
+  
+  res.json({ 
+    message: 'Google OAuth URL',
+    authUrl: authUrl,
+    timestamp: new Date().toISOString()
+  });
+});
+
 
 // 11. Manejo de errores
 app.use((err, req, res, next) => {
